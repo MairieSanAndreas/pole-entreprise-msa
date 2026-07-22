@@ -4,23 +4,20 @@ import { supabase } from "../lib/supabase";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../hooks/useToast";
 import { logAudit } from "../lib/audit";
-import { fmtDate, fmtDateTime, money } from "../lib/format";
-import { NOTE_TYPES, noteTypeLabel, contractStatusMeta } from "../lib/constants";
+import { fmtDate, fmtDateTime } from "../lib/format";
+import { NOTE_TYPES, noteTypeLabel } from "../lib/constants";
 import { logoUrl, openDoc, uploadDoc } from "../lib/storage";
 import { Loading, Empty, Logo, RdvPill, CategoryBadge, Section, Modal, Confirm, Field } from "../components/ui";
 
 export default function CompanyDetail() {
   const { id } = useParams();
-  const { canViewSensitive, canDelete, user } = useAuth();
-  const { isResponsable } = useAuth();
+  const { canDelete, user, isResponsable } = useAuth();
   const toast = useToast();
   const nav = useNavigate();
 
   const [company, setCompany] = useState(null);
-  const [rib, setRib] = useState(null);
   const [notes, setNotes] = useState([]);
-  const [invoices, setInvoices] = useState([]);
-  const [contracts, setContracts] = useState([]);
+  const [taxes, setTaxes] = useState([]);
   const [docs, setDocs] = useState([]);
   const [people, setPeople] = useState({});
   const [loading, setLoading] = useState(true);
@@ -29,16 +26,10 @@ export default function CompanyDetail() {
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
-<<<<<<< HEAD
-    const [c, n, inv, con, dc, pf] = await Promise.all([
-      supabase.from("companies").select("*, company_categories!category_id(label, color)").eq("id", id).single(),
-=======
-    const [c, cats, n, inv, con, dc, pf] = await Promise.all([
+    const [c, cats, n, tx, dc, pf] = await Promise.all([
       supabase.from("companies").select("*").eq("id", id).maybeSingle(),
       supabase.from("company_categories").select("id, label, color"),
->>>>>>> cef991931cc8597a2566ca5b3d7d65e48284f2d0
       supabase.from("company_notes").select("*").eq("company_id", id).eq("is_deleted", false).order("created_at", { ascending: false }),
-      supabase.from("invoices").select("*").eq("company_id", id).order("received_at", { ascending: false }),
       supabase.from("contracts").select("*").eq("company_id", id).order("created_at", { ascending: false }),
       supabase.from("company_documents").select("*").eq("company_id", id).order("created_at", { ascending: false }),
       supabase.from("profiles").select("id, display_name"),
@@ -49,15 +40,10 @@ export default function CompanyDetail() {
       const cat = (cats.data ?? []).find((x) => x.id === comp.category_id);
       comp.company_categories = cat ? { label: cat.label, color: cat.color } : null;
     }
-    setCompany(comp ?? null); setNotes(n.data ?? []); setInvoices(inv.data ?? []);
-    setContracts(con.data ?? []); setDocs(dc.data ?? []);
+    setCompany(comp ?? null); setNotes(n.data ?? []); setTaxes(tx.data ?? []); setDocs(dc.data ?? []);
     setPeople(Object.fromEntries((pf.data ?? []).map((p) => [p.id, p.display_name])));
-    if (canViewSensitive) {
-      const { data: s } = await supabase.from("company_sensitive").select("*").eq("company_id", id).maybeSingle();
-      setRib(s);
-    }
     setLoading(false);
-  }, [id, canViewSensitive]);
+  }, [id]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -66,7 +52,7 @@ export default function CompanyDetail() {
   const archive = async () => {
     setBusy(true);
     await supabase.from("companies").update({
-      is_active: false, status: "archive", archived_at: new Date().toISOString(), archived_by: user.id,
+      is_active: false, status: "inactif", archived_at: new Date().toISOString(), archived_by: user.id,
     }).eq("id", id);
     await logAudit({ action: "archive", entity_type: "company", entity_id: id, company_id: id, summary: `Archivage de « ${company.name} »` });
     toast.ok("Entreprise archivée."); setBusy(false); setConfirm(null); nav("/entreprises");
@@ -123,6 +109,9 @@ export default function CompanyDetail() {
             {(company.coowner_first_name || company.coowner_last_name || company.coowner_phone) && (
               <Info label="Copatron" value={[company.coowner_first_name, company.coowner_last_name].filter(Boolean).join(" ")} phone={company.coowner_phone} />
             )}
+            {(company.coowner2_first_name || company.coowner2_last_name || company.coowner2_phone) && (
+              <Info label="Deuxième copatron" value={[company.coowner2_first_name, company.coowner2_last_name].filter(Boolean).join(" ")} phone={company.coowner2_phone} />
+            )}
             <div className="divider" />
             <Info label="Dernier rendez-vous" value={fmtDate(company.last_meeting_at)} />
             {company.notes && (
@@ -139,25 +128,20 @@ export default function CompanyDetail() {
           </div>
         </Section>
 
-        {/* RIB sensible */}
-        <Section title="🔒 RIB & informations sensibles">
-          {!canViewSensitive ? (
-            <div className="muted" style={{ fontSize: 13 }}>Accès réservé aux utilisateurs autorisés.</div>
-          ) : rib && (rib.rib_text || rib.rib_document_path) ? (
-            <div className="stack" style={{ gap: 12 }}>
-              {rib.rib_text && (
-                <div>
-                  <div className="muted" style={{ fontSize: 12 }}>RIB</div>
-                  <div className="mono" style={{ marginTop: 4, wordBreak: "break-all" }}>{rib.rib_text}</div>
-                </div>
-              )}
-              {rib.rib_document_path && (
-                <button className="btn sm" onClick={() => openDoc(rib.rib_document_path)}>📄 Ouvrir le document RIB</button>
-              )}
+        {/* Taxe d'exploitation */}
+        <Section title="Taxe d'exploitation">
+          {company.exploitation_tax ? (
+            <div>
+              <div className="muted" style={{ fontSize: 12 }}>Montant / périodicité</div>
+              <div style={{ marginTop: 4, fontSize: 18, fontFamily: "var(--serif)" }} className="gold">{company.exploitation_tax}</div>
             </div>
           ) : (
-            <div className="muted" style={{ fontSize: 13 }}>Aucun RIB enregistré. <Link className="gold" to={`/entreprises/${id}/modifier`}>Ajouter</Link>.</div>
+            <div className="muted" style={{ fontSize: 13 }}>Aucune taxe renseignée. <Link className="gold" to={`/entreprises/${id}/modifier`}>Ajouter</Link>.</div>
           )}
+          <div className="divider" />
+          <div className="faint" style={{ fontSize: 12 }}>
+            Les justificatifs de taxe se gèrent dans l'onglet « Taxe d'exploitation » ci-dessous.
+          </div>
         </Section>
       </div>
 
@@ -165,14 +149,12 @@ export default function CompanyDetail() {
       <div className="card pad">
         <div className="tabs">
           <button className={tab === "notes" ? "active" : ""} onClick={() => setTab("notes")}>Suivi & notes ({notes.length})</button>
-          <button className={tab === "invoices" ? "active" : ""} onClick={() => setTab("invoices")}>Factures ({invoices.length})</button>
-          <button className={tab === "contracts" ? "active" : ""} onClick={() => setTab("contracts")}>Contrats ({contracts.length})</button>
+          <button className={tab === "taxes" ? "active" : ""} onClick={() => setTab("taxes")}>Taxe d'exploitation ({taxes.length})</button>
           <button className={tab === "docs" ? "active" : ""} onClick={() => setTab("docs")}>Documents ({docs.length})</button>
         </div>
 
         {tab === "notes" && <NotesTab companyId={id} company={company} notes={notes} people={people} reload={load} isResponsable={isResponsable} userId={user.id} />}
-        {tab === "invoices" && <InvoicesTab companyId={id} companyName={company.name} rows={invoices} people={people} reload={load} />}
-        {tab === "contracts" && <ContractsTab companyId={id} companyName={company.name} rows={contracts} people={people} reload={load} />}
+        {tab === "taxes" && <TaxesTab companyId={id} companyName={company.name} rows={taxes} reload={load} />}
         {tab === "docs" && <DocsTab companyId={id} companyName={company.name} rows={docs} people={people} reload={load} />}
       </div>
 
@@ -182,7 +164,7 @@ export default function CompanyDetail() {
       )}
       {confirm === "delete" && (
         <Confirm title="Suppression définitive" danger confirmLabel="Supprimer définitivement"
-          message={`Cette action est irréversible : « ${company.name} », ses notes, factures et contrats seront supprimés. Confirmer ?`}
+          message={`Cette action est irréversible : « ${company.name} », ses notes et taxes seront supprimées. Confirmer ?`}
           onConfirm={destroy} onClose={() => setConfirm(null)} busy={busy} />
       )}
     </div>
@@ -216,7 +198,6 @@ function NotesTab({ companyId, company, notes, people, reload, isResponsable, us
   };
 
   const del = async (note) => {
-    // Suppression logique -> le trigger DB écrit l'entrée d'audit.
     await supabase.from("company_notes").update({ is_deleted: true, deleted_at: new Date().toISOString(), deleted_by: userId }).eq("id", note.id);
     toast.ok("Note supprimée."); reload();
   };
@@ -258,135 +239,63 @@ function NotesTab({ companyId, company, notes, people, reload, isResponsable, us
 }
 const who = (people, uid) => people[uid] || "—";
 
-/* --------------------------- Invoices ----------------------------------- */
-function InvoicesTab({ companyId, companyName, rows, people, reload }) {
+/* --------------------- Taxe d'exploitation (documents) ------------------ */
+function TaxesTab({ companyId, companyName, rows, reload }) {
   const toast = useToast();
   const [open, setOpen] = useState(false);
-  const [f, setF] = useState({ number: "", category: "", amount: "", invoice_date: "", comment: "" });
+  const [f, setF] = useState({ is_active: true, start_date: "", notes: "" });
   const [file, setFile] = useState(null);
   const [busy, setBusy] = useState(false);
 
   const save = async () => {
-    if (!f.number.trim()) return toast.err("Un nom ou numéro est requis.");
     setBusy(true);
     try {
       let file_path = null;
-      if (file) { const up = await uploadDoc(companyId, "factures", file); file_path = up.path; }
-      const { data, error } = await supabase.from("invoices").insert({
-        company_id: companyId, number: f.number.trim(), category: f.category || null,
-        amount: f.amount ? Number(f.amount) : null, invoice_date: f.invoice_date || null,
-        comment: f.comment || null, file_path,
+      if (file) { const up = await uploadDoc(companyId, "taxes", file); file_path = up.path; }
+      const label = `Taxe d'exploitation${f.start_date ? " — " + f.start_date : ""}`;
+      const { data, error } = await supabase.from("contracts").insert({
+        company_id: companyId, name: label, is_active: f.is_active,
+        start_date: f.start_date || null, notes: f.notes || null, file_path,
       }).select("id").single();
       if (error) throw error;
-      await logAudit({ action: "create", entity_type: "invoice", entity_id: data.id, company_id: companyId, summary: `Facture « ${f.number} » ajoutée à ${companyName}` });
-      toast.ok("Facture ajoutée."); setOpen(false); setF({ number: "", category: "", amount: "", invoice_date: "", comment: "" }); setFile(null); reload();
+      await logAudit({ action: "create", entity_type: "taxe", entity_id: data.id, company_id: companyId, summary: `Taxe d'exploitation ajoutée à ${companyName}` });
+      toast.ok("Taxe ajoutée."); setOpen(false); setF({ is_active: true, start_date: "", notes: "" }); setFile(null); reload();
     } catch (e) { toast.err(e.message); } finally { setBusy(false); }
   };
 
   return (
     <div>
-      <div className="row" style={{ marginBottom: 12 }}>
-        <span className="grow" />
-        <button className="btn primary sm" onClick={() => setOpen(true)}>+ Ajouter une facture</button>
-      </div>
-      {rows.length === 0 ? <Empty icon="€" title="Aucune facture" /> : (
+      <div className="row" style={{ marginBottom: 12 }}><span className="grow" /><button className="btn primary sm" onClick={() => setOpen(true)}>+ Ajouter une taxe d'exploitation</button></div>
+      {rows.length === 0 ? <Empty icon="€" title="Aucune taxe d'exploitation" /> : (
         <table className="table">
-          <thead><tr><th>Facture</th><th>Catégorie</th><th>Montant</th><th>Date</th><th>Reçue</th><th></th></tr></thead>
+          <thead><tr><th>Statut</th><th>Date de création</th><th>Note</th><th></th></tr></thead>
           <tbody>
-            {rows.map((i) => (
-              <tr key={i.id} onClick={() => i.file_path ? openDoc(i.file_path) : i.external_url && window.open(i.external_url, "_blank")}>
-                <td style={{ fontWeight: 600 }}>{i.number}</td>
-                <td>{i.category || <span className="faint">—</span>}</td>
-                <td className="num">{money(i.amount)}</td>
-                <td className="num">{fmtDate(i.invoice_date)}</td>
-                <td className="num">{fmtDate(i.received_at)}</td>
-                <td>{i.file_path ? "📄" : i.external_url ? "⇗" : ""}</td>
+            {rows.map((c) => (
+              <tr key={c.id} onClick={() => c.file_path ? openDoc(c.file_path) : c.external_url && window.open(c.external_url, "_blank")}>
+                <td><span className={`pill ${c.is_active ? "ok" : "none"}`}><span className="dot" />{c.is_active ? "Actif" : "Inactif"}</span></td>
+                <td className="num">{fmtDate(c.start_date)}</td>
+                <td className="muted" style={{ maxWidth: 340, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.notes || "—"}</td>
+                <td>{c.file_path ? "📄" : c.external_url ? "⇗" : ""}</td>
               </tr>
             ))}
           </tbody>
         </table>
       )}
       {open && (
-        <Modal title="Ajouter une facture" onClose={() => setOpen(false)}
+        <Modal title="Ajouter une taxe d'exploitation" onClose={() => setOpen(false)}
           footer={<><button className="btn ghost" onClick={() => setOpen(false)}>Annuler</button><button className="btn primary" onClick={save} disabled={busy}>Enregistrer</button></>}>
           <div className="stack">
-            <Field label="Nom ou numéro" required><input value={f.number} onChange={(e) => setF({ ...f, number: e.target.value })} /></Field>
             <div className="grid g-2">
-              <Field label="Catégorie"><input value={f.category} onChange={(e) => setF({ ...f, category: e.target.value })} /></Field>
-              <Field label="Montant"><input type="number" step="0.01" value={f.amount} onChange={(e) => setF({ ...f, amount: e.target.value })} /></Field>
-            </div>
-            <Field label="Date de facture"><input type="date" value={f.invoice_date} onChange={(e) => setF({ ...f, invoice_date: e.target.value })} /></Field>
-            <Field label="Fichier (PDF / image)"><input type="file" accept="application/pdf,image/*" onChange={(e) => setFile(e.target.files?.[0] || null)} /></Field>
-            <Field label="Commentaire"><textarea value={f.comment} onChange={(e) => setF({ ...f, comment: e.target.value })} /></Field>
-          </div>
-        </Modal>
-      )}
-    </div>
-  );
-}
-
-/* --------------------------- Contracts ---------------------------------- */
-function ContractsTab({ companyId, companyName, rows, reload }) {
-  const toast = useToast();
-  const [open, setOpen] = useState(false);
-  const [f, setF] = useState({ name: "", category: "", status: "brouillon", start_date: "", end_date: "", notes: "" });
-  const [file, setFile] = useState(null);
-  const [busy, setBusy] = useState(false);
-
-  const save = async () => {
-    if (!f.name.trim()) return toast.err("Le nom du contrat est requis.");
-    setBusy(true);
-    try {
-      let file_path = null;
-      if (file) { const up = await uploadDoc(companyId, "contrats", file); file_path = up.path; }
-      const { data, error } = await supabase.from("contracts").insert({
-        company_id: companyId, name: f.name.trim(), category: f.category || null, status: f.status,
-        start_date: f.start_date || null, end_date: f.end_date || null, notes: f.notes || null, file_path,
-      }).select("id").single();
-      if (error) throw error;
-      await logAudit({ action: "create", entity_type: "contract", entity_id: data.id, company_id: companyId, summary: `Contrat « ${f.name} » ajouté à ${companyName}` });
-      toast.ok("Contrat ajouté."); setOpen(false); setF({ name: "", category: "", status: "brouillon", start_date: "", end_date: "", notes: "" }); setFile(null); reload();
-    } catch (e) { toast.err(e.message); } finally { setBusy(false); }
-  };
-
-  return (
-    <div>
-      <div className="row" style={{ marginBottom: 12 }}><span className="grow" /><button className="btn primary sm" onClick={() => setOpen(true)}>+ Ajouter un contrat</button></div>
-      {rows.length === 0 ? <Empty icon="✎" title="Aucun contrat" /> : (
-        <table className="table">
-          <thead><tr><th>Contrat</th><th>Statut</th><th>Début</th><th>Fin</th><th></th></tr></thead>
-          <tbody>
-            {rows.map((c) => { const m = contractStatusMeta(c.status); return (
-              <tr key={c.id} onClick={() => c.file_path ? openDoc(c.file_path) : c.external_url && window.open(c.external_url, "_blank")}>
-                <td style={{ fontWeight: 600 }}>{c.name}</td>
-                <td><span className={`pill ${m.tone}`}>{m.label}</span></td>
-                <td className="num">{fmtDate(c.start_date)}</td>
-                <td className="num">{fmtDate(c.end_date)}</td>
-                <td>{c.file_path ? "📄" : c.external_url ? "⇗" : ""}</td>
-              </tr>
-            ); })}
-          </tbody>
-        </table>
-      )}
-      {open && (
-        <Modal title="Ajouter un contrat" onClose={() => setOpen(false)}
-          footer={<><button className="btn ghost" onClick={() => setOpen(false)}>Annuler</button><button className="btn primary" onClick={save} disabled={busy}>Enregistrer</button></>}>
-          <div className="stack">
-            <Field label="Nom du contrat" required><input value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} /></Field>
-            <div className="grid g-2">
-              <Field label="Catégorie"><input value={f.category} onChange={(e) => setF({ ...f, category: e.target.value })} /></Field>
               <Field label="Statut">
-                <select value={f.status} onChange={(e) => setF({ ...f, status: e.target.value })}>
-                  {contractStatusMeta && ["brouillon","en_attente","actif","termine","resilie","archive"].map((s) => <option key={s} value={s}>{contractStatusMeta(s).label}</option>)}
+                <select value={f.is_active ? "1" : "0"} onChange={(e) => setF({ ...f, is_active: e.target.value === "1" })}>
+                  <option value="1">Actif</option>
+                  <option value="0">Inactif</option>
                 </select>
               </Field>
-            </div>
-            <div className="grid g-2">
-              <Field label="Date de début"><input type="date" value={f.start_date} onChange={(e) => setF({ ...f, start_date: e.target.value })} /></Field>
-              <Field label="Date de fin"><input type="date" value={f.end_date} onChange={(e) => setF({ ...f, end_date: e.target.value })} /></Field>
+              <Field label="Date de création"><input type="date" value={f.start_date} onChange={(e) => setF({ ...f, start_date: e.target.value })} /></Field>
             </div>
             <Field label="Fichier"><input type="file" accept="application/pdf,image/*" onChange={(e) => setFile(e.target.files?.[0] || null)} /></Field>
-            <Field label="Notes"><textarea value={f.notes} onChange={(e) => setF({ ...f, notes: e.target.value })} /></Field>
+            <Field label="Note"><textarea value={f.notes} onChange={(e) => setF({ ...f, notes: e.target.value })} /></Field>
           </div>
         </Modal>
       )}

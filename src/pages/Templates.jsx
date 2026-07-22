@@ -73,11 +73,6 @@ export default function Templates() {
         <button className="btn primary" onClick={() => setEdit({ title: "", category: "", content: "" })}>+ Nouveau message</button>
       </div>
 
-      <div className="card pad" style={{ background: "var(--bg-2)", fontSize: 12.5 }}>
-        <span className="muted">Variables disponibles : </span>
-        {["{entreprise}", "{patron}", "{date}", "{secretaire}"].map((v) => <span key={v} className="badge mono" style={{ marginRight: 6 }}>{v}</span>)}
-      </div>
-
       {filtered.length === 0 ? <div className="card"><Empty icon="❝" title="Aucun message type" /></div> : (
         <div className="grid g-3">
           {filtered.map((r) => (

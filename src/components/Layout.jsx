@@ -8,8 +8,7 @@ import GlobalSearch from "./GlobalSearch";
 const TITLES = {
   "/": ["Tableau de bord", "Vue d'ensemble du Pôle Entreprise"],
   "/entreprises": ["Entreprises", "Annuaire et fiches des entreprises"],
-  "/factures": ["Factures", "Factures transmises par les entreprises"],
-  "/contrats": ["Contrats", "Conventions et contrats des entreprises"],
+  "/contrats": ["Taxe d'exploitation", "Taxes d'exploitation des entreprises"],
   "/liens": ["Liens GDocs", "Documents et espaces de travail partagés"],
   "/templates": ["Messages types", "Modèles réutilisables du Pôle"],
   "/mon-espace": ["Mon espace", "Votre activité récente"],

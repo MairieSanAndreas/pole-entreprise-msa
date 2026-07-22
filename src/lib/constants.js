@@ -13,11 +13,8 @@ export const noteTypeLabel = (v) =>
   NOTE_TYPES.find((t) => t.value === v)?.label ?? v;
 
 export const COMPANY_STATUS = [
-  { value: "prospect",   label: "Prospect" },
-  { value: "actif",      label: "Actif" },
-  { value: "partenaire", label: "Partenaire" },
-  { value: "inactif",    label: "Inactif" },
-  { value: "archive",    label: "Archivé" },
+  { value: "actif",   label: "Actif" },
+  { value: "inactif", label: "Inactif" },
 ];
 
 export const CONTRACT_STATUS = [
@@ -40,8 +37,7 @@ export const RDV_LATE_DAYS = 30; // 1 mois     -> rouge
 export const NAV = [
   { to: "/",            label: "Tableau de bord", icon: "◆" },
   { to: "/entreprises", label: "Entreprises",     icon: "▣" },
-  { to: "/factures",    label: "Factures",        icon: "€" },
-  { to: "/contrats",    label: "Contrats",        icon: "✎" },
+  { to: "/contrats",    label: "Taxe d'exploitation", icon: "€" },
   { to: "/liens",       label: "Liens GDocs",     icon: "⇗" },
   { to: "/templates",   label: "Messages types",  icon: "❝" },
   { to: "/mon-espace",  label: "Mon espace",      icon: "☰" },

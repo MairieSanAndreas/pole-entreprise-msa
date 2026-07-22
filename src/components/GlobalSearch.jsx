@@ -45,7 +45,7 @@ export default function GlobalSearch() {
         key: i.id, title: i.number, sub: "Facture", go: () => nav(`/entreprises/${i.company_id}`),
       })) });
       if (con.data?.length) g.push({ label: "Contrats", items: con.data.map((c) => ({
-        key: c.id, title: c.name, sub: "Contrat", go: () => nav(`/entreprises/${c.company_id}`),
+        key: c.id, title: c.name, sub: "Taxe d'exploitation", go: () => nav(`/entreprises/${c.company_id}`),
       })) });
       if (lnk.data?.length) g.push({ label: "Liens", items: lnk.data.map((l) => ({
         key: l.id, title: l.title, sub: "Lien", go: () => window.open(l.url, "_blank"),
