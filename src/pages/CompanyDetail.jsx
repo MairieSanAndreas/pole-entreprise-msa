@@ -29,15 +29,22 @@ export default function CompanyDetail() {
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
-    const [c, n, inv, con, dc, pf] = await Promise.all([
-      supabase.from("companies").select("*, company_categories(label, color)").eq("id", id).single(),
+    const [c, cats, n, inv, con, dc, pf] = await Promise.all([
+      supabase.from("companies").select("*").eq("id", id).maybeSingle(),
+      supabase.from("company_categories").select("id, label, color"),
       supabase.from("company_notes").select("*").eq("company_id", id).eq("is_deleted", false).order("created_at", { ascending: false }),
       supabase.from("invoices").select("*").eq("company_id", id).order("received_at", { ascending: false }),
       supabase.from("contracts").select("*").eq("company_id", id).order("created_at", { ascending: false }),
       supabase.from("company_documents").select("*").eq("company_id", id).order("created_at", { ascending: false }),
       supabase.from("profiles").select("id, display_name"),
     ]);
-    setCompany(c.data); setNotes(n.data ?? []); setInvoices(inv.data ?? []);
+    if (c.error) console.error("Chargement fiche entreprise :", c.error.message);
+    const comp = c.data;
+    if (comp) {
+      const cat = (cats.data ?? []).find((x) => x.id === comp.category_id);
+      comp.company_categories = cat ? { label: cat.label, color: cat.color } : null;
+    }
+    setCompany(comp ?? null); setNotes(n.data ?? []); setInvoices(inv.data ?? []);
     setContracts(con.data ?? []); setDocs(dc.data ?? []);
     setPeople(Object.fromEntries((pf.data ?? []).map((p) => [p.id, p.display_name])));
     if (canViewSensitive) {
