@@ -30,7 +30,6 @@ export default function CompanyDetail() {
 
   const load = useCallback(async () => {
     const [c, n, inv, con, dc, pf] = await Promise.all([
-      supabase.from("companies").select("*, company_categories(label, color)").eq("id", id).single(),
       supabase.from("companies").select("*, company_categories!category_id(label, color)").eq("id", id).single(),
       supabase.from("company_notes").select("*").eq("company_id", id).eq("is_deleted", false).order("created_at", { ascending: false }),
       supabase.from("invoices").select("*").eq("company_id", id).order("received_at", { ascending: false }),
