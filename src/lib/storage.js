@@ -4,6 +4,13 @@ export const ASSETS = "company-assets"; // public
 export const DOCS = "documents";        // privé
 
 // URL publique d'un logo (bucket public).
+// Logo d'une entreprise : lien externe en priorité, sinon fichier Storage.
+export function companyLogo(company) {
+  if (!company) return null;
+  if (company.logo_url) return company.logo_url;
+  return logoUrl(company.logo_path);
+}
+
 export function logoUrl(path) {
   if (!path) return null;
   return supabase.storage.from(ASSETS).getPublicUrl(path).data.publicUrl;

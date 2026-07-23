@@ -3,7 +3,7 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import { rdvStatus, fmtDate } from "../lib/format";
 import { Loading, Empty, Logo, RdvPill, CategoryBadge } from "../components/ui";
-import { logoUrl } from "../lib/storage";
+import { companyLogo } from "../lib/storage";
 
 const RELANCE = [
   { value: "all",  label: "Toutes" },
@@ -30,7 +30,7 @@ export default function Companies() {
       const [cat, c] = await Promise.all([
         supabase.from("company_categories").select("*").eq("is_active", true).order("position"),
         supabase.from("companies")
-          .select("id, name, category_id, logo_path, owner_first_name, owner_last_name, owner_phone, last_meeting_at, status, is_active")
+          .select("id, name, category_id, logo_path, logo_url, owner_first_name, owner_last_name, owner_phone, last_meeting_at, status, is_active")
           .order("name"),
       ]);
       setCategories(cat.data ?? []);
@@ -120,7 +120,7 @@ export default function Companies() {
                   <tr key={c.id} onClick={() => nav(`/entreprises/${c.id}`)}>
                     <td>
                       <div className="row">
-                        <Logo url={logoUrl(c.logo_path)} name={c.name} />
+                        <Logo url={companyLogo(c)} name={c.name} />
                         <span style={{ fontWeight: 600 }}>{c.name}</span>
                       </div>
                     </td>

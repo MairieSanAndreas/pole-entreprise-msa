@@ -4,7 +4,7 @@ import { supabase } from "../lib/supabase";
 import { fmtDate, fmtDateTime, rdvStatus } from "../lib/format";
 import { RDV_WARN_DAYS, RDV_LATE_DAYS, noteTypeLabel } from "../lib/constants";
 import { Loading, Empty, Section, Logo, RdvPill } from "../components/ui";
-import { logoUrl } from "../lib/storage";
+import { companyLogo } from "../lib/storage";
 
 export default function Dashboard() {
   const [loading, setLoading] = useState(true);
@@ -20,7 +20,7 @@ export default function Dashboard() {
     (async () => {
       const [c, cat, n, inv, a, con] = await Promise.all([
         supabase.from("companies")
-          .select("id, name, category_id, last_meeting_at, logo_path, created_at, status")
+          .select("id, name, category_id, last_meeting_at, logo_path, logo_url, created_at, status")
           .eq("is_active", true).order("created_at", { ascending: false }),
         supabase.from("company_categories").select("*").eq("is_active", true).order("position"),
         supabase.from("company_notes")
@@ -146,7 +146,7 @@ export default function Dashboard() {
             <div className="stack" style={{ gap: 8 }}>
               {recentCompanies.map((c) => (
                 <div key={c.id} className="row" style={{ cursor: "pointer" }} onClick={() => nav(`/entreprises/${c.id}`)}>
-                  <Logo url={logoUrl(c.logo_path)} name={c.name} />
+                  <Logo url={companyLogo(c)} name={c.name} />
                   <div style={{ minWidth: 0 }}>
                     <div style={{ fontWeight: 600 }}>{c.name}</div>
                     <div className="faint" style={{ fontSize: 12 }}>Créée le {fmtDate(c.created_at)}</div>

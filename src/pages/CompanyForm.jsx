@@ -3,7 +3,6 @@ import { useNavigate, useParams } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import { useToast } from "../hooks/useToast";
 import { logAudit } from "../lib/audit";
-import { uploadLogo } from "../lib/storage";
 import { COMPANY_STATUS } from "../lib/constants";
 import { Field, Loading } from "../components/ui";
 
@@ -11,7 +10,7 @@ const EMPTY = {
   name: "", category_id: "", owner_first_name: "", owner_last_name: "", owner_phone: "",
   coowner_first_name: "", coowner_last_name: "", coowner_phone: "",
   coowner2_first_name: "", coowner2_last_name: "", coowner2_phone: "",
-  last_meeting_at: "", status: "actif", notes: "", exploitation_tax: "",
+  last_meeting_at: "", status: "actif", notes: "", exploitation_tax: "", logo_url: "",
 };
 
 export default function CompanyForm() {
@@ -22,8 +21,6 @@ export default function CompanyForm() {
 
   const [form, setForm] = useState(EMPTY);
   const [categories, setCategories] = useState([]);
-  const [logoFile, setLogoFile] = useState(null);
-  const [logoPreview, setLogoPreview] = useState(null);
   const [loading, setLoading] = useState(editing);
   const [busy, setBusy] = useState(false);
 
@@ -41,13 +38,6 @@ export default function CompanyForm() {
       }
     })();
   }, [id, editing]);
-
-  const onLogo = (e) => {
-    const f = e.target.files?.[0];
-    if (!f) return;
-    setLogoFile(f);
-    setLogoPreview(URL.createObjectURL(f));
-  };
 
   const submit = async (e) => {
     e.preventDefault();
@@ -70,6 +60,7 @@ export default function CompanyForm() {
         status: form.status,
         notes: form.notes || null,
         exploitation_tax: form.exploitation_tax || null,
+        logo_url: form.logo_url ? form.logo_url.trim() : null,
       };
 
       let companyId = id;
@@ -80,11 +71,6 @@ export default function CompanyForm() {
         const { data, error } = await supabase.from("companies").insert(payload).select("id").single();
         if (error) throw error;
         companyId = data.id;
-      }
-
-      if (logoFile) {
-        const path = await uploadLogo(companyId, logoFile);
-        await supabase.from("companies").update({ logo_path: path }).eq("id", companyId);
       }
 
       await logAudit({
@@ -118,14 +104,19 @@ export default function CompanyForm() {
         <div className="row" style={{ alignItems: "flex-start", marginBottom: 16 }}>
           <div className="field" style={{ width: 130 }}>
             <label>Logo</label>
-            <label className="logo lg" style={{ cursor: "pointer" }}>
-              {logoPreview ? <img src={logoPreview} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : (form.name?.[0]?.toUpperCase() || "+")}
-              <input type="file" accept="image/*" hidden onChange={onLogo} />
-            </label>
+            <div className="logo lg">
+              {form.logo_url
+                ? <img src={form.logo_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                       onError={(e) => { e.currentTarget.style.display = "none"; }} />
+                : (form.name?.[0]?.toUpperCase() || "+")}
+            </div>
           </div>
           <div className="grow stack">
             <Field label="Nom de l'entreprise" required>
               <input value={form.name} onChange={set("name")} placeholder="ex. Bean Machine" required />
+            </Field>
+            <Field label="Lien du logo" hint="Adresse directe d'une image (se terminant par .png, .jpg ou .webp). L'aperçu s'affiche à gauche.">
+              <input value={form.logo_url} onChange={set("logo_url")} placeholder="https://i.imgur.com/exemple.png" />
             </Field>
             <div className="grid g-2">
               <Field label="Catégorie">

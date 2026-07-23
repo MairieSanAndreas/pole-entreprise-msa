@@ -6,7 +6,7 @@ import { useToast } from "../hooks/useToast";
 import { logAudit } from "../lib/audit";
 import { fmtDate, fmtDateTime } from "../lib/format";
 import { NOTE_TYPES, noteTypeLabel } from "../lib/constants";
-import { logoUrl, openDoc, uploadDoc } from "../lib/storage";
+import { companyLogo, openDoc, uploadDoc } from "../lib/storage";
 import { Loading, Empty, Logo, RdvPill, CategoryBadge, Section, Modal, Confirm, Field } from "../components/ui";
 
 export default function CompanyDetail() {
@@ -78,7 +78,7 @@ export default function CompanyDetail() {
       {/* En-tête */}
       <div className="card pad">
         <div className="row wrap" style={{ alignItems: "flex-start" }}>
-          <Logo url={logoUrl(company.logo_path)} name={company.name} lg />
+          <Logo url={companyLogo(company)} name={company.name} lg />
           <div style={{ minWidth: 0 }}>
             <div className="row wrap" style={{ gap: 10 }}>
               <h2 style={{ fontFamily: "var(--serif)", fontSize: 24, margin: 0 }}>{company.name}</h2>
